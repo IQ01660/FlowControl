@@ -86,9 +86,11 @@ public class Simulator {
 	// Read the entire file.
 	if (file.length() > Integer.MAX_VALUE) {
 	    throw new RuntimeException(path + " is too large a file");
-	}
+    }
+    
 	int             length = (int)file.length();
-	byte[]          buffer = new byte[length];
+    byte[]          buffer = new byte[length];
+    
 	try {
 	    FileInputStream input  = new FileInputStream(file);
 	    input.read(buffer);
@@ -138,8 +140,8 @@ public class Simulator {
             System.out.printf("\tsent length = %d\treceived length = %d\n",
                               data.length,
                               received.length);
-        }
-
+        } 
+        
         receiver.stop();
         sender.stop();
 

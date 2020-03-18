@@ -161,8 +161,8 @@ public abstract class DataLinkLayer {
                 }
             }
 
-	    // Check whether a timeout action needs to be taken.
-	    checkTimeout();
+            // Check whether a timeout action needs to be taken.
+            checkTimeout();
 
         } // Event loop
 
@@ -218,18 +218,18 @@ public abstract class DataLinkLayer {
             return null;
         }
         
-	// Extract a frame-worth of data from the sending buffer.
-	int frameSize = ((sendBuffer.size() < MAX_FRAME_SIZE)
-			 ? sendBuffer.size()
-			 : MAX_FRAME_SIZE);
-	Queue<Byte> data = new LinkedList<Byte>();
-	for (int j = 0; j < frameSize; j += 1) {
-	    data.add(sendBuffer.remove());
-	}
+        // Extract a frame-worth of data from the sending buffer.
+        int frameSize = ((sendBuffer.size() < MAX_FRAME_SIZE)
+                ? sendBuffer.size()
+                : MAX_FRAME_SIZE);
+        Queue<Byte> data = new LinkedList<Byte>();
+        for (int j = 0; j < frameSize; j += 1) {
+            data.add(sendBuffer.remove());
+        }
 
-	// Create a frame from the data and transmit it.
-	Queue<Byte> framedData = createFrame(data);
-	transmit(framedData);
+        // Create a frame from the data and transmit it.
+        Queue<Byte> framedData = createFrame(data);
+	    transmit(framedData);
 
         return framedData;
 

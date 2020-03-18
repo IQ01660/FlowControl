@@ -18,11 +18,22 @@ import java.util.Queue;
  * data, and that performs error management with a parity bit.  It employs no
  * flow control; damaged frames are dropped.
  */
-public class ParityDataLinkLayer extends DataLinkLayer {
+public class PARDataLinkLayer extends DataLinkLayer {
 // =============================================================================
 
 
- 
+    /**
+     * These show frame with what number
+     * has to be sent next and received next
+     */
+    private byte numberingToSend = 0; // for sender (added before parity)
+    private byte numberingToReceive = 0; // for receiver
+
+    /**
+     * Whether to send the data to client
+     */
+    private boolean sendToClient = true;
+
     // =========================================================================
     /**
      * Embed a raw sequence of bytes into a framed sequence.
@@ -57,9 +68,23 @@ public class ParityDataLinkLayer extends DataLinkLayer {
 
 	}
 
+    // Add the numbering of the frame
+    // Note: this is done before adding parity
+    framingData.add(this.numberingToSend);
+
+    // reset the numbering to send
+    if (this.numberingToSend == 0)
+    {
+        this.numberingToSend = 1;
+    }
+    else 
+    {
+        this.numberingToSend = 0;
+    }
+
 	// Add the parity byte.
 	framingData.add(parity);
-	
+    
 	// End with a stop tag.
 	framingData.add(stopTag);
 
@@ -156,6 +181,17 @@ public class ParityDataLinkLayer extends DataLinkLayer {
 	    return null;
 	}
 
+    //make all numberingToReceive updates
+    byte receivedNumbering = extractedBytes.remove(extractedBytes.size() - 1);
+    if (receivedNumbering != numberingToReceive)
+    {
+        this.sendToClient = false;
+    }
+    else 
+    {
+        this.numberingToReceive = (this.numberingToReceive == 0) ? (byte) 1 : (byte) 0;
+    }
+
 	return extractedBytes;
 
     } // processFrame ()
@@ -173,7 +209,6 @@ public class ParityDataLinkLayer extends DataLinkLayer {
     protected void finishFrameSend (Queue<Byte> frame) {
 
         // COMPLETE ME WITH FLOW CONTROL
-        
         
     } // finishFrameSend ()
     // =========================================================================
@@ -276,7 +311,6 @@ public class ParityDataLinkLayer extends DataLinkLayer {
     /** The escape tag. */
     private final byte escapeTag = (byte)'\\';
     // =========================================================================
-
 
 
 
