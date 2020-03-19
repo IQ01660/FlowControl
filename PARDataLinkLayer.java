@@ -24,12 +24,14 @@ public class PARDataLinkLayer extends DataLinkLayer {
 
     /**
      * Stores the time the most recent frame was sent
+     * (SENDER)
      */
     public long recentSendTime;
 
     /**
      * Will store the frames that could be asked to resend
-     * in the checkTimeOut (probably)
+     * in the checkTimeOut 
+     * (SENDER)
      */
     private Queue<Byte> resendBuffer = new LinkedList<>();
 
@@ -50,12 +52,14 @@ public class PARDataLinkLayer extends DataLinkLayer {
     /**
      * These show frame with what number
      * has to be sent next and received next
+     * (RECEIVER)
      */
     private byte numberingToSend = (byte) 0; // for sender (added before parity)
     private byte numberingToReceive = (byte) 0; // for receiver
 
     /**
      * Whether to send the data to client (receiver)
+     * (changes for RECEIVER)
      */
     private boolean sendToClient = true;
 
@@ -105,17 +109,21 @@ public class PARDataLinkLayer extends DataLinkLayer {
     
 	// End with a stop tag.
     framingData.add(stopTag);
-    
-    if(this.isThisSender)
-    {
-        System.out.println();
-        System.out.println("SENDER: " + framingData);
-    }
-    if(!this.isThisSender)
-    {
-        System.out.println();
-        System.out.println("RECEIVER: " + framingData);
-    }
+    //===============================
+    /**
+     * Debugging
+     */
+    // if(this.isThisSender)
+    // {
+    //     System.out.println();
+    //     System.out.println("SENDER: " + framingData);
+    // }
+    // if(!this.isThisSender)
+    // {
+    //     System.out.println();
+    //     System.out.println("RECEIVER: " + framingData);
+    // }
+    //==============================
     
     return framingData;
     } // createFrame ()
@@ -124,6 +132,10 @@ public class PARDataLinkLayer extends DataLinkLayer {
 
     // =========================================================================
     /**
+     * This method is called only if sendBuffer is not empty - 
+     * this will happen first to the SENDER; that is how this method
+     * determines if client of this DLL is a sender or receiver
+     * =================================
      * Extract the next frame-worth of data from the sending buffer, frame it,
      * and then send it.
      *
@@ -144,13 +156,9 @@ public class PARDataLinkLayer extends DataLinkLayer {
         //were not yet resolved
         if (!this.isReadyToSend)
         {
+            //not calling finishFrameSend and not sending 
+            //anything and not calling transmit
             return null;
-        }
-        //do not send anything after this frame
-        //until isReadyToSend becomes true (in finishFrameReceive)
-        else if (this.isThisSender)
-        {
-            this.isReadyToSend = false;
         }
 
         //just calling the normal function
@@ -300,8 +308,17 @@ public class PARDataLinkLayer extends DataLinkLayer {
             // send the frame to resend buffer
             this.resendBuffer = frame;
             this.recentSendTime = System.currentTimeMillis();
-            System.out.println("Recent Sent Time: " + recentSendTime);
+            //System.out.println("Recent Sent Time: " + recentSendTime);
+
+            //do not send anything after this frame
+            //until isReadyToSend becomes true (in finishFrameReceive)
+            if (this.isThisSender)
+            {
+                this.isReadyToSend = false;
+            }
         }
+
+        
 
     } // finishFrameSend ()
     // =========================================================================
@@ -376,15 +393,22 @@ public class PARDataLinkLayer extends DataLinkLayer {
         if(this.isThisSender == true && this.resendBuffer != null)
         {
             //the current time
+
             long currentTime = System.currentTimeMillis();
 
             //find if 1 second passed from the last sent
-            if ( (currentTime - this.recentSendTime) >= 1000 )
+
+            if ( (currentTime - this.recentSendTime) >= 100 )
             {
                 //take the frame to be sent from buffer
+
                 Queue<Byte> frameToSend = this.resendBuffer;
+
                 //resend the frame to receiver
-                System.out.println("RESENDING FROM SENDER" + frameToSend);
+                //and keep record of time again
+                //as finishFrameSend IS NOT CALLED
+
+                //System.out.println("RESENDING FROM SENDER" + frameToSend);
                 transmit(frameToSend);
                 this.recentSendTime = System.currentTimeMillis();
             }
