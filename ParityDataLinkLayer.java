@@ -62,7 +62,8 @@ public class ParityDataLinkLayer extends DataLinkLayer {
 	
 	// End with a stop tag.
 	framingData.add(stopTag);
-
+    System.out.println();
+    System.out.println("This frame is created: " + framingData);
 	return framingData;
 	
     } // createFrame ()

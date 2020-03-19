@@ -31,7 +31,7 @@ public class PARDataLinkLayer extends DataLinkLayer {
      * Will store the frames that could be asked to resend
      * in the checkTimeOut (probably)
      */
-    private Queue<Queue<Byte>> resendBuffer = new LinkedList<>();
+    private Queue<Byte> resendBuffer = new LinkedList<>();
 
     /**
      * Whether to wait and not send anything
@@ -104,10 +104,20 @@ public class PARDataLinkLayer extends DataLinkLayer {
 	framingData.add(parity);
     
 	// End with a stop tag.
-	framingData.add(stopTag);
-
-	return framingData;
-	
+    framingData.add(stopTag);
+    
+    if(this.isThisSender)
+    {
+        System.out.println();
+        System.out.println("SENDER: " + framingData);
+    }
+    if(!this.isThisSender)
+    {
+        System.out.println();
+        System.out.println("RECEIVER: " + framingData);
+    }
+    
+    return framingData;
     } // createFrame ()
     // =========================================================================
 
@@ -120,7 +130,7 @@ public class PARDataLinkLayer extends DataLinkLayer {
      * @return the frame of bytes transmitted.
      */
     protected Queue<Byte> sendNextFrame () {
-
+        
         //this will only run once 
         //to determine if this is a sender
         if (PARDataLinkLayer.isThisFirstSend)
@@ -228,23 +238,42 @@ public class PARDataLinkLayer extends DataLinkLayer {
         
 	// The final byte inside the frame is the parity.  Compare it to a
 	// recalculation.
-	byte receivedParity   = extractedBytes.remove(extractedBytes.size() - 1);
+    byte receivedParity   = extractedBytes.remove(extractedBytes.size() - 1);
+    
+    //storing the received numbering
+    byte receivedNumbering = extractedBytes.remove(extractedBytes.size() - 1);
+
 	byte calculatedParity = calculateParity(extractedBytes);
 	if (receivedParity != calculatedParity) {
-	    System.out.printf("ParityDataLinkLayer.processFrame():\tDamaged frame\n");
+        System.out.printf("ParityDataLinkLayer.processFrame():\tDamaged frame\n");
+        
+        //if you are a sender
+        // if (this.isThisSender)
+        // {
+        //     this.isReadyToSend = false;
+        // }
+
 	    return null;
 	}
 
     //make all numberingToReceive updates
-    byte receivedNumbering = extractedBytes.remove(extractedBytes.size() - 1);
-    if (receivedNumbering != numberingToReceive)
+    
+
+    if(!this.isThisSender)
     {
-        this.sendToClient = false;
+        System.out.println("Received Numbering: " + receivedNumbering);
+        System.out.println("Expected Numbering: " + numberingToReceive);
+        if (receivedNumbering != numberingToReceive)
+        {
+            this.sendToClient = false;
+        }
+        else 
+        {
+            this.numberingToReceive = (this.numberingToReceive == 0) ? (byte) 1 : (byte) 0;
+        }
     }
-    else 
-    {
-        this.numberingToReceive = (this.numberingToReceive == 0) ? (byte) 1 : (byte) 0;
-    }
+    
+    
 
 	return extractedBytes;
 
@@ -269,8 +298,9 @@ public class PARDataLinkLayer extends DataLinkLayer {
         if (this.isThisSender)
         {
             // send the frame to resend buffer
-            this.resendBuffer.add(frame);
+            this.resendBuffer = frame;
             this.recentSendTime = System.currentTimeMillis();
+            System.out.println("Recent Sent Time: " + recentSendTime);
         }
 
     } // finishFrameSend ()
@@ -308,6 +338,7 @@ public class PARDataLinkLayer extends DataLinkLayer {
             {
                 //allow the next frames to be sent
                 this.isReadyToSend = true;
+                this.resendBuffer = null;
             }
         }
 
@@ -342,17 +373,18 @@ public class PARDataLinkLayer extends DataLinkLayer {
         /**
          * If this is a sender
          */
-        if(this.isThisSender)
+        if(this.isThisSender == true && this.resendBuffer != null)
         {
             //the current time
             long currentTime = System.currentTimeMillis();
 
             //find if 1 second passed from the last sent
-            if ( (currentTime - this.recentSendTime) == 1000 )
+            if ( (currentTime - this.recentSendTime) >= 1000 )
             {
                 //take the frame to be sent from buffer
-                Queue<Byte> frameToSend = this.resendBuffer.remove();
+                Queue<Byte> frameToSend = this.resendBuffer;
                 //resend the frame to receiver
+                System.out.println("RESENDING FROM SENDER" + frameToSend);
                 transmit(frameToSend);
                 this.recentSendTime = System.currentTimeMillis();
             }
