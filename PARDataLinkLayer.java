@@ -10,9 +10,9 @@ import java.util.Queue;
 
 // =============================================================================
 /**
- * @file   ParityDataLinkLayer.java
- * @author Scott F. Kaplan (sfkaplan@cs.amherst.edu)
- * @date   February 2020
+ * @file   PARDataLinkLayer.java
+ * @author Ikram Gabiyev (igabiyev22@amherst.edu)
+ * @date   March 2020
  *
  * A data link layer that uses start/stop tags and byte packing to frame the
  * data, and that performs error management with a parity bit.  It employs no
