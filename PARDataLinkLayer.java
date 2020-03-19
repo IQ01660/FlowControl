@@ -23,6 +23,17 @@ public class PARDataLinkLayer extends DataLinkLayer {
 
 
     /**
+     * Stores the time the most recent frame was sent
+     */
+    public long recentSendTime;
+
+    /**
+     * Will store the frames that could be asked to resend
+     * in the checkTimeOut (probably)
+     */
+    private Queue<Queue<Byte>> resendBuffer = new LinkedList<>();
+
+    /**
      * Whether to wait and not send anything
      * (SENDER)
      */
@@ -40,8 +51,8 @@ public class PARDataLinkLayer extends DataLinkLayer {
      * These show frame with what number
      * has to be sent next and received next
      */
-    private byte numberingToSend = 0; // for sender (added before parity)
-    private byte numberingToReceive = 0; // for receiver
+    private byte numberingToSend = (byte) 0; // for sender (added before parity)
+    private byte numberingToReceive = (byte) 0; // for receiver
 
     /**
      * Whether to send the data to client (receiver)
@@ -119,14 +130,15 @@ public class PARDataLinkLayer extends DataLinkLayer {
         }
 
 
-        //send only if ready (i.e. prev frame is done)
+        //do not send if issues with the last frame
+        //were not yet resolved
         if (!this.isReadyToSend)
         {
             return null;
         }
         //do not send anything after this frame
         //until isReadyToSend becomes true (in finishFrameReceive)
-        else
+        else if (this.isThisSender)
         {
             this.isReadyToSend = false;
         }
@@ -251,7 +263,16 @@ public class PARDataLinkLayer extends DataLinkLayer {
     protected void finishFrameSend (Queue<Byte> frame) {
 
         // COMPLETE ME WITH FLOW CONTROL
-        
+        /**
+         * If this is a sender
+         */
+        if (this.isThisSender)
+        {
+            // send the frame to resend buffer
+            this.resendBuffer.add(frame);
+            this.recentSendTime = System.currentTimeMillis();
+        }
+
     } // finishFrameSend ()
     // =========================================================================
 
@@ -282,8 +303,10 @@ public class PARDataLinkLayer extends DataLinkLayer {
          */
         else
         {
+            //if the received frame is an ack
             if (frame.remove() == this.ackMsg)
             {
+                //allow the next frames to be sent
                 this.isReadyToSend = true;
             }
         }
@@ -299,7 +322,7 @@ public class PARDataLinkLayer extends DataLinkLayer {
 
             client.receive(deliverable);
         }
-        
+        //allow to send frames to client for now
         this.sendToClient = true;
         
     } // finishFrameReceive ()
@@ -316,6 +339,24 @@ public class PARDataLinkLayer extends DataLinkLayer {
     protected void checkTimeout () {
 
         // COMPLETE ME WITH FLOW CONTROL
+        /**
+         * If this is a sender
+         */
+        if(this.isThisSender)
+        {
+            //the current time
+            long currentTime = System.currentTimeMillis();
+
+            //find if 1 second passed from the last sent
+            if ( (currentTime - this.recentSendTime) == 1000 )
+            {
+                //take the frame to be sent from buffer
+                Queue<Byte> frameToSend = this.resendBuffer.remove();
+                //resend the frame to receiver
+                transmit(frameToSend);
+                this.recentSendTime = System.currentTimeMillis();
+            }
+        }
 
     } // checkTimeout ()
     // =========================================================================
