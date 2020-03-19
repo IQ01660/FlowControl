@@ -23,6 +23,20 @@ public class PARDataLinkLayer extends DataLinkLayer {
 
 
     /**
+     * Whether to wait and not send anything
+     * (SENDER)
+     */
+    private boolean isReadyToSend = true;
+
+    /**
+     * isThisSender determines if this DLL
+     * belongs to the sender
+     * isThisFirstSend tells us if this is the first data send among all users
+     */
+    private boolean isThisSender = false;
+    private static boolean isThisFirstSend = true;
+
+    /**
      * These show frame with what number
      * has to be sent next and received next
      */
@@ -30,7 +44,7 @@ public class PARDataLinkLayer extends DataLinkLayer {
     private byte numberingToReceive = 0; // for receiver
 
     /**
-     * Whether to send the data to client
+     * Whether to send the data to client (receiver)
      */
     private boolean sendToClient = true;
 
@@ -73,14 +87,7 @@ public class PARDataLinkLayer extends DataLinkLayer {
     framingData.add(this.numberingToSend);
 
     // reset the numbering to send
-    if (this.numberingToSend == 0)
-    {
-        this.numberingToSend = 1;
-    }
-    else 
-    {
-        this.numberingToSend = 0;
-    }
+    this.numberingToSend = (this.numberingToSend == 0) ? (byte) 1 : (byte) 0;
 
 	// Add the parity byte.
 	framingData.add(parity);
@@ -94,7 +101,42 @@ public class PARDataLinkLayer extends DataLinkLayer {
     // =========================================================================
 
 
+    // =========================================================================
+    /**
+     * Extract the next frame-worth of data from the sending buffer, frame it,
+     * and then send it.
+     *
+     * @return the frame of bytes transmitted.
+     */
+    protected Queue<Byte> sendNextFrame () {
+
+        //this will only run once 
+        //to determine if this is a sender
+        if (PARDataLinkLayer.isThisFirstSend)
+        {
+            this.isThisSender = true;
+            PARDataLinkLayer.isThisFirstSend = false;
+        }
+
+
+        //send only if ready (i.e. prev frame is done)
+        if (!this.isReadyToSend)
+        {
+            return null;
+        }
+        //do not send anything after this frame
+        //until isReadyToSend becomes true (in finishFrameReceive)
+        else
+        {
+            this.isReadyToSend = false;
+        }
+
+        //just calling the normal function
+        return super.sendNextFrame();
+    } // sendNextFrame ()
+    // =========================================================================
     
+
     // =========================================================================
     /**
      * Determine whether the received, buffered data constitutes a complete
@@ -226,14 +268,39 @@ public class PARDataLinkLayer extends DataLinkLayer {
     protected void finishFrameReceive (Queue<Byte> frame) {
 
         // COMPLETE ME WITH FLOW CONTROL
-        
-        // Deliver frame to the client.
-        byte[] deliverable = new byte[frame.size()];
-        for (int i = 0; i < deliverable.length; i += 1) {
-            deliverable[i] = frame.remove();
+
+        /**
+         * If this is a receiver
+         */
+        if (!this.isThisSender)
+        {
+            this.sendBuffer.add(this.ackMsg);
         }
 
-        client.receive(deliverable);
+        /**
+         * If this is a sender
+         */
+        else
+        {
+            if (frame.remove() == this.ackMsg)
+            {
+                this.isReadyToSend = true;
+            }
+        }
+
+        //if the processFrame's received numbering allows to send the data to client
+        if (this.sendToClient)
+        {
+            // Deliver frame to the client.
+            byte[] deliverable = new byte[frame.size()];
+            for (int i = 0; i < deliverable.length; i += 1) {
+                deliverable[i] = frame.remove();
+            }
+
+            client.receive(deliverable);
+        }
+        
+        this.sendToClient = true;
         
     } // finishFrameReceive ()
     // =========================================================================
@@ -310,6 +377,9 @@ public class PARDataLinkLayer extends DataLinkLayer {
 
     /** The escape tag. */
     private final byte escapeTag = (byte)'\\';
+
+    /** The ack message */
+    private final byte ackMsg = (byte) '*';
     // =========================================================================
 
 
